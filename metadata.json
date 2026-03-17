@@ -1,0 +1,5 @@
+{
+  "name": "System Admin Dashboard",
+  "description": "A comprehensive admin dashboard for managing users, account books, teams, versions, and system logs.",
+  "requestFramePermissions": []
+}
