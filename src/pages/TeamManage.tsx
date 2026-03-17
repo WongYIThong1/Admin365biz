@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getTeams, toggleTeamStatus, extendSubscription, createInvite, getInvites, revokeInvite, copyInvite } from '../lib/api';
+import { getTeams, toggleTeamStatus, extendSubscription, createInvite, getInvites, revokeInvite } from '../lib/api';
 import { toast } from 'sonner';
 import { getErrorMessage } from '../lib/error-utils';
 import { 
@@ -12,12 +12,9 @@ import {
   Ticket,
   Plus,
   Trash2,
-  Copy,
   X,
   Loader2,
   AlertCircle,
-  Link2,
-  CopyPlus
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
@@ -74,7 +71,6 @@ export function TeamManage() {
 
   const loadInvites = async (bookId: string) => {
     setIsModalLoading(true);
-    setNewInviteCode(null);
     try {
       const res = await getInvites(bookId, true);
       if (res.ok) {
@@ -95,21 +91,13 @@ export function TeamManage() {
   const handleOpenInvites = (team: Team) => {
     setSelectedTeam(team);
     setShowInviteModal(true);
+    setNewInviteCode(null);
     setInviteForm({
       expiresInDays: '7',
       maxUses: '1',
       role: '',
     });
     loadInvites(team.bookId);
-  };
-
-  const copyToClipboard = (text: string, label: string = 'Copied to clipboard') => {
-    try {
-       navigator.clipboard.writeText(text);
-       toast.success(label);
-    } catch (err) {
-       toast.error('Auto-copy failed. Please copy manually.');
-    }
   };
 
   const handleCreateInvite = async () => {
@@ -126,7 +114,7 @@ export function TeamManage() {
       if (res.ok) {
         const code = res.data.code;
         setNewInviteCode(code);
-        copyToClipboard(code, 'Success! Code auto-copied to clipboard.');
+        toast.success('Invite code created');
         await loadInvites(selectedTeam.bookId);
       } else {
         toast.error(res.error || 'Failed to create invite');
@@ -150,33 +138,6 @@ export function TeamManage() {
       }
     } catch (err: any) {
       toast.error(`Revoke Error: ${err.message}`);
-    }
-  };
-
-  const handleCopyInvite = async (inviteId: number) => {
-    if (!selectedTeam) return;
-    setIsModalLoading(true);
-    try {
-      const expiresInDays = Math.max(1, Number(inviteForm.expiresInDays) || 7);
-      const maxUses = Math.max(1, Number(inviteForm.maxUses) || 1);
-      const res = await copyInvite(inviteId, {
-        expires_in_days: expiresInDays,
-        max_uses: maxUses,
-        role: inviteForm.role.trim() || null,
-      });
-      if (res.ok) {
-        const code = res.data.code;
-        setNewInviteCode(code);
-        copyToClipboard(code, 'Cloned! New code auto-copied to clipboard.');
-        await loadInvites(selectedTeam.bookId); // Await systemic refresh
-      } else {
-        const msg = res.error ? getErrorMessage(res.error) : 'Failed to clone';
-        toast.error(msg);
-      }
-    } catch (err: any) {
-      toast.error(`Clone Exception: ${err.message}`);
-    } finally {
-      setIsModalLoading(false);
     }
   };
 
@@ -420,18 +381,9 @@ export function TeamManage() {
 
                   {newInviteCode && (
                     <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                      <div className="flex flex-col gap-3">
-                        <div>
-                          <p className="text-xs text-slate-500">Latest code</p>
-                          <code className="mt-1 block break-all text-sm font-medium tracking-[0.12em] text-slate-950">{newInviteCode}</code>
-                        </div>
-                        <button 
-                          onClick={() => copyToClipboard(newInviteCode)}
-                          className="flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 transition hover:bg-slate-100"
-                        >
-                          <Copy className="h-4 w-4" />
-                          Copy Again
-                        </button>
+                      <div>
+                        <p className="text-xs text-slate-500">Latest code</p>
+                        <code className="mt-1 block break-all text-sm font-medium tracking-[0.12em] text-slate-950">{newInviteCode}</code>
                       </div>
                     </div>
                   )}
@@ -470,16 +422,7 @@ export function TeamManage() {
                         {teamInvites.map((invite) => (
                           <tr key={invite.inviteId} className="border-b border-slate-100 transition-colors hover:bg-slate-50/70">
                             <td className="py-4 pr-4">
-                              <div>
-                                <p className="font-medium text-slate-950">Invite #{invite.inviteId}</p>
-                                <button
-                                  onClick={() => copyToClipboard(`ID_${invite.inviteId}`, 'Invite Reference ID copied')}
-                                  className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500 transition hover:text-slate-900"
-                                >
-                                  <Link2 className="h-3 w-3" />
-                                  Copy reference
-                                </button>
-                              </div>
+                              <p className="font-medium text-slate-950">Invite #{invite.inviteId}</p>
                             </td>
                             <td className="px-4 py-4 text-sm text-slate-500">
                               {invite.usedCount}/{invite.maxUses}
@@ -488,14 +431,7 @@ export function TeamManage() {
                               {format(new Date(invite.expiresAt), 'MMM dd, yyyy')}
                             </td>
                             <td className="py-4 pl-4">
-                              <div className="flex items-center justify-end gap-2">
-                                <button 
-                                  onClick={() => handleCopyInvite(invite.inviteId)}
-                                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-950"
-                                  title="Clone/Renew Key"
-                                >
-                                  <CopyPlus className="h-4 w-4" />
-                                </button>
+                              <div className="flex items-center justify-end">
                                 <button 
                                   onClick={() => handleRevokeInvite(invite.inviteId)}
                                   className="flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-white text-rose-600 transition hover:bg-rose-50"
